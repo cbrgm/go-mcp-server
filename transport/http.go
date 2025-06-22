@@ -144,7 +144,9 @@ func (t *HTTPTransport) Start(ctx context.Context, srv *server.Server) error {
 
 		w.Header().Set("Content-Type", contentTypeJSON)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]string{"status": "healthy"})
+		if err := json.NewEncoder(w).Encode(map[string]string{"status": "healthy"}); err != nil {
+			log.Printf("Failed to encode health response: %v", err)
+		}
 	})
 
 	t.server = &http.Server{
@@ -241,7 +243,7 @@ func (t *HTTPTransport) handleGet(ctx context.Context, srv *server.Server, w htt
 		return
 	}
 
-	// Keep the connection alive until context is cancelled
+	// Keep the connection alive until context is canceled
 	<-ctx.Done()
 
 	// Clean up session
@@ -285,7 +287,9 @@ func (t *HTTPTransport) handleSSERequest(ctx context.Context, srv *server.Server
 
 	if err := srv.HandleRequest(reqCtx, req); err != nil {
 		log.Printf("Error handling SSE request: %v", err)
-		session.sendError(req.ID, mcp.ErrorCodeInternalError, "Internal error", err.Error())
+		if sendErr := session.sendError(req.ID, mcp.ErrorCodeInternalError, "Internal error", err.Error()); sendErr != nil {
+			log.Printf("Failed to send error response: %v", sendErr)
+		}
 	}
 }
 
@@ -326,10 +330,12 @@ func (t *HTTPTransport) startSSEStream(w http.ResponseWriter, r *http.Request) *
 
 	w.Header().Set(headerMCPSessionID, sessionID)
 
-	session.sendEvent("connected", map[string]string{
+	if err := session.sendEvent("connected", map[string]string{
 		"sessionId": sessionID,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
+	}); err != nil {
+		log.Printf("Failed to send connected event: %v", err)
+	}
 
 	return session
 }
@@ -347,7 +353,9 @@ func (t *HTTPTransport) sendError(w http.ResponseWriter, id any, code int, messa
 
 	w.Header().Set("Content-Type", contentTypeJSON)
 	w.WriteHeader(http.StatusBadRequest)
-	json.NewEncoder(w).Encode(errorResp)
+	if err := json.NewEncoder(w).Encode(errorResp); err != nil {
+		log.Printf("Failed to encode error response: %v", err)
+	}
 }
 
 func (s *SSESession) sendEvent(eventType string, data any) error {
@@ -363,17 +371,25 @@ func (s *SSESession) sendEvent(eventType string, data any) error {
 		return err
 	}
 
-	fmt.Fprintf(s.writer, "id: %d\n", s.eventID)
+	if _, err := fmt.Fprintf(s.writer, "id: %d\n", s.eventID); err != nil {
+		return fmt.Errorf("failed to write event ID: %w", err)
+	}
 	if eventType != "" {
-		fmt.Fprintf(s.writer, "event: %s\n", eventType)
+		if _, err := fmt.Fprintf(s.writer, "event: %s\n", eventType); err != nil {
+			return fmt.Errorf("failed to write event type: %w", err)
+		}
 	}
 
 	dataStr := string(dataBytes)
 	lines := strings.Split(dataStr, "\n")
 	for _, line := range lines {
-		fmt.Fprintf(s.writer, "data: %s\n", line)
+		if _, err := fmt.Fprintf(s.writer, "data: %s\n", line); err != nil {
+			return fmt.Errorf("failed to write data line: %w", err)
+		}
 	}
-	fmt.Fprintf(s.writer, "\n")
+	if _, err := fmt.Fprintf(s.writer, "\n"); err != nil {
+		return fmt.Errorf("failed to write newline: %w", err)
+	}
 
 	s.flusher.Flush()
 	s.eventID++
@@ -589,7 +605,7 @@ func (t *HTTPTransport) handleStatusPage(w http.ResponseWriter, r *http.Request)
 </body>
 </html>`
 
-	fmt.Fprintf(w, html,
+	_, _ = fmt.Fprintf(w, html,
 		t.port,              // Port
 		mcp.ProtocolVersion, // MCP protocol version
 		activeSessions,      // Active sessions

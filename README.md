@@ -106,9 +106,36 @@ echo '{"jsonrpc":"2.0","method":"prompts/get","id":5,"params":{"name":"brewing_g
 
 When using HTTP transport, a web status page is available at the root path (`/`) of the server. This page shows server information, active sessions, and available endpoints.
 
-<div style="text-align: center;">
-  <img src="https://github.com/user-attachments/assets/ea23a3cf-bc0a-4339-ae4a-958b4560391b" style="max-width: 100px; height: auto;" alt="image">
-</div>
+## MCP Client Configuration
+
+### Claude Desktop / VS Code / Other MCP Clients
+
+Add this configuration to your MCP client settings:
+
+```json
+{
+  "mcpServers": {
+    "tea": {
+      "command": "podman",
+      "args": ["run", "-i", "--rm", "ghcr.io/cbrgm/go-mcp-server:v1"]
+    }
+  }
+}
+```
+
+For local development, you can also use:
+
+```json
+{
+  "mcpServers": {
+    "tea": {
+      "command": "go",
+      "args": ["run", "./cmd/go-mcp-server"],
+      "cwd": "/path/to/go-mcp-server"
+    }
+  }
+}
+```
 
 ## Testing with MCP Inspector
 

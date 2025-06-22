@@ -22,12 +22,6 @@ const (
 	toolGetTeaNames   = "getTeaNames"
 	toolGetTeaInfo    = "getTeaInfo"
 	toolGetTeasByType = "getTeasByType"
-
-	resourceMenuURI = "menu://tea"
-
-	promptTeaRecommendation = "tea-recommendation"
-	promptBrewingGuide      = "brewing-guide"
-	promptTeaPairing        = "tea-pairing"
 )
 
 type TeaHandler struct{}
@@ -366,87 +360,107 @@ func (h *TeaHandler) ListPrompts(ctx context.Context) ([]mcp.Prompt, error) {
 }
 
 func (h *TeaHandler) GetPrompt(ctx context.Context, params mcp.PromptParams) (mcp.PromptResponse, error) {
+	arguments := h.convertArguments(params.Arguments)
+
+	switch params.Name {
+	case "tea_recommendation":
+		return h.generateTeaRecommendation(arguments)
+	case "brewing_guide":
+		return h.generateBrewingGuide(arguments)
+	case "tea_pairing":
+		return h.generateTeaPairing(arguments)
+	default:
+		return mcp.PromptResponse{}, fmt.Errorf("unknown prompt: %s", params.Name)
+	}
+}
+
+func (h *TeaHandler) convertArguments(args map[string]any) map[string]string {
 	arguments := make(map[string]string)
-	for k, v := range params.Arguments {
+	for k, v := range args {
 		if str, ok := v.(string); ok {
 			arguments[k] = str
 		}
 	}
+	return arguments
+}
 
-	switch params.Name {
-	case "tea_recommendation":
-		mood := arguments["mood"]
-		caffeinePreference := arguments["caffeine_preference"]
-		flavorProfile := arguments["flavor_profile"]
+func (h *TeaHandler) generateTeaRecommendation(arguments map[string]string) (mcp.PromptResponse, error) {
+	mood := arguments["mood"]
+	caffeinePreference := arguments["caffeine_preference"]
+	flavorProfile := arguments["flavor_profile"]
 
-		prompt := "Based on our tea collection, here are some recommendations:\n\n"
+	prompt := "Based on our tea collection, here are some recommendations:\n\n"
 
-		if mood != "" {
-			prompt += fmt.Sprintf("For a %s mood:\n", mood)
-			switch mood {
-			case "energizing":
-				prompt += "- Gyokuro (high caffeine, umami flavor)\n- Assam (robust, perfect morning tea)\n"
-			case "relaxing":
-				prompt += "- White Peony (low caffeine, delicate)\n- Silver Needle (very low caffeine, honey notes)\n"
-			case "focus":
-				prompt += "- Earl Grey (bergamot aids concentration)\n- Da Hong Pao (complex flavors for mindful drinking)\n"
-			}
-			prompt += "\n"
-		}
+	if mood != "" {
+		prompt += h.getMoodRecommendations(mood)
+	}
 
-		if caffeinePreference != "" {
-			prompt += fmt.Sprintf("For %s caffeine preference:\n", caffeinePreference)
-			switch caffeinePreference {
-			case "high":
-				prompt += "- Gyokuro, Earl Grey, Assam\n"
-			case "medium":
-				prompt += "- Dragonwell, Da Hong Pao, Tie Guan Yin\n"
-			case "low":
-				prompt += "- White Peony\n"
-			case "none", "very low":
-				prompt += "- Silver Needle\n"
-			}
-			prompt += "\n"
-		}
+	if caffeinePreference != "" {
+		prompt += h.getCaffeineRecommendations(caffeinePreference)
+	}
 
-		if flavorProfile != "" {
-			prompt += fmt.Sprintf("For %s flavor profile:\n", flavorProfile)
-			switch flavorProfile {
-			case "floral":
-				prompt += "- Tie Guan Yin (orchid-like), White Peony (subtle floral)\n"
-			case "robust":
-				prompt += "- Assam (malty), Earl Grey (bold bergamot)\n"
-			case "delicate":
-				prompt += "- Silver Needle (honey sweetness), Dragonwell (gentle nuttiness)\n"
-			case "complex":
-				prompt += "- Da Hong Pao (roasted, fruity), Gyokuro (umami depth)\n"
-			}
-		}
+	if flavorProfile != "" {
+		prompt += h.getFlavorRecommendations(flavorProfile)
+	}
 
-		return mcp.PromptResponse{
-			Messages: []mcp.PromptMessage{
-				{
-					Role: "user",
-					Content: mcp.MessageContent{
-						Type: "text",
-						Text: prompt,
-					},
-				},
-			},
-		}, nil
+	return h.createPromptResponse(prompt), nil
+}
 
-	case "brewing_guide":
-		teaName := arguments["tea_name"]
-		if teaName == "" {
-			return mcp.PromptResponse{}, fmt.Errorf("tea_name is required for brewing guide")
-		}
+func (h *TeaHandler) getMoodRecommendations(mood string) string {
+	prompt := fmt.Sprintf("For a %s mood:\n", mood)
+	switch mood {
+	case "energizing":
+		prompt += "- Gyokuro (high caffeine, umami flavor)\n- Assam (robust, perfect morning tea)\n"
+	case "relaxing":
+		prompt += "- White Peony (low caffeine, delicate)\n- Silver Needle (very low caffeine, honey notes)\n"
+	case "focus":
+		prompt += "- Earl Grey (bergamot aids concentration)\n- Da Hong Pao (complex flavors for mindful drinking)\n"
+	}
+	return prompt + "\n"
+}
 
-		tea, exists := teaMenu[teaName]
-		if !exists {
-			return mcp.PromptResponse{}, fmt.Errorf("tea '%s' not found in our collection", teaName)
-		}
+func (h *TeaHandler) getCaffeineRecommendations(caffeinePreference string) string {
+	prompt := fmt.Sprintf("For %s caffeine preference:\n", caffeinePreference)
+	switch caffeinePreference {
+	case "high":
+		prompt += "- Gyokuro, Earl Grey, Assam\n"
+	case "medium":
+		prompt += "- Dragonwell, Da Hong Pao, Tie Guan Yin\n"
+	case "low":
+		prompt += "- White Peony\n"
+	case "none", "very low":
+		prompt += "- Silver Needle\n"
+	}
+	return prompt + "\n"
+}
 
-		prompt := fmt.Sprintf(`# Brewing Guide for %s
+func (h *TeaHandler) getFlavorRecommendations(flavorProfile string) string {
+	prompt := fmt.Sprintf("For %s flavor profile:\n", flavorProfile)
+	switch flavorProfile {
+	case "floral":
+		prompt += "- Tie Guan Yin (orchid-like), White Peony (subtle floral)\n"
+	case "robust":
+		prompt += "- Assam (malty), Earl Grey (bold bergamot)\n"
+	case "delicate":
+		prompt += "- Silver Needle (honey sweetness), Dragonwell (gentle nuttiness)\n"
+	case "complex":
+		prompt += "- Da Hong Pao (roasted, fruity), Gyokuro (umami depth)\n"
+	}
+	return prompt
+}
+
+func (h *TeaHandler) generateBrewingGuide(arguments map[string]string) (mcp.PromptResponse, error) {
+	teaName := arguments["tea_name"]
+	if teaName == "" {
+		return mcp.PromptResponse{}, fmt.Errorf("tea_name is required for brewing guide")
+	}
+
+	tea, exists := teaMenu[teaName]
+	if !exists {
+		return mcp.PromptResponse{}, fmt.Errorf("tea '%s' not found in our collection", teaName)
+	}
+
+	prompt := fmt.Sprintf(`# Brewing Guide for %s
 
 ## Tea Information
 - **Type**: %s
@@ -462,48 +476,27 @@ func (h *TeaHandler) GetPrompt(ctx context.Context, params mcp.PromptParams) (mc
 %s
 
 Enjoy your perfectly brewed %s!`,
-			tea.Name, tea.Type, tea.Origin, tea.Caffeine,
-			tea.Temperature, tea.SteepTime, tea.Flavor,
-			tea.Description, tea.Name)
+		tea.Name, tea.Type, tea.Origin, tea.Caffeine,
+		tea.Temperature, tea.SteepTime, tea.Flavor,
+		tea.Description, tea.Name)
 
-		return mcp.PromptResponse{
-			Messages: []mcp.PromptMessage{
-				{
-					Role: "user",
-					Content: mcp.MessageContent{
-						Type: "text",
-						Text: prompt,
-					},
-				},
-			},
-		}, nil
+	return h.createPromptResponse(prompt), nil
+}
 
-	case "tea_pairing":
-		teaName := arguments["tea_name"]
-		if teaName == "" {
-			return mcp.PromptResponse{}, fmt.Errorf("tea_name is required for pairing suggestions")
-		}
+func (h *TeaHandler) generateTeaPairing(arguments map[string]string) (mcp.PromptResponse, error) {
+	teaName := arguments["tea_name"]
+	if teaName == "" {
+		return mcp.PromptResponse{}, fmt.Errorf("tea_name is required for pairing suggestions")
+	}
 
-		tea, exists := teaMenu[teaName]
-		if !exists {
-			return mcp.PromptResponse{}, fmt.Errorf("tea '%s' not found in our collection", teaName)
-		}
+	tea, exists := teaMenu[teaName]
+	if !exists {
+		return mcp.PromptResponse{}, fmt.Errorf("tea '%s' not found in our collection", teaName)
+	}
 
-		var pairings string
-		switch tea.Type {
-		case "Green Tea":
-			pairings = "Light appetizers, sushi, steamed vegetables, mild cheeses, fruit tarts"
-		case "Black Tea":
-			pairings = "Breakfast pastries, chocolate desserts, hearty sandwiches, aged cheeses, spiced foods"
-		case "Oolong Tea":
-			pairings = "Roasted nuts, grilled seafood, dim sum, stone fruits, semi-hard cheeses"
-		case "White Tea":
-			pairings = "Fresh fruits, light salads, delicate pastries, soft cheeses, cucumber sandwiches"
-		default:
-			pairings = "Light snacks and mild flavors that won't overpower the tea"
-		}
+	pairings := h.getTeaPairings(tea.Type)
 
-		prompt := fmt.Sprintf(`# Food Pairings for %s
+	prompt := fmt.Sprintf(`# Food Pairings for %s
 
 ## Tea Profile
 - **Type**: %s
@@ -517,22 +510,37 @@ Enjoy your perfectly brewed %s!`,
 The %s characteristics of %s complement these foods perfectly, creating a harmonious tasting experience.
 
 Price: $%.2f`,
-			tea.Name, tea.Type, tea.Flavor, tea.Origin,
-			pairings, tea.Flavor, tea.Name, tea.Price)
+		tea.Name, tea.Type, tea.Flavor, tea.Origin,
+		pairings, tea.Flavor, tea.Name, tea.Price)
 
-		return mcp.PromptResponse{
-			Messages: []mcp.PromptMessage{
-				{
-					Role: "user",
-					Content: mcp.MessageContent{
-						Type: "text",
-						Text: prompt,
-					},
+	return h.createPromptResponse(prompt), nil
+}
+
+func (h *TeaHandler) getTeaPairings(teaType string) string {
+	switch teaType {
+	case "Green Tea":
+		return "Light appetizers, sushi, steamed vegetables, mild cheeses, fruit tarts"
+	case "Black Tea":
+		return "Breakfast pastries, chocolate desserts, hearty sandwiches, aged cheeses, spiced foods"
+	case "Oolong Tea":
+		return "Roasted nuts, grilled seafood, dim sum, stone fruits, semi-hard cheeses"
+	case "White Tea":
+		return "Fresh fruits, light salads, delicate pastries, soft cheeses, cucumber sandwiches"
+	default:
+		return "Light snacks and mild flavors that won't overpower the tea"
+	}
+}
+
+func (h *TeaHandler) createPromptResponse(text string) mcp.PromptResponse {
+	return mcp.PromptResponse{
+		Messages: []mcp.PromptMessage{
+			{
+				Role: "user",
+				Content: mcp.MessageContent{
+					Type: "text",
+					Text: text,
 				},
 			},
-		}, nil
-
-	default:
-		return mcp.PromptResponse{}, fmt.Errorf("unknown prompt: %s", params.Name)
+		},
 	}
 }

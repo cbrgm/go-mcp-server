@@ -22,7 +22,7 @@ import (
 // is responsible for message framing, encoding/decoding, and error handling.
 type Transport interface {
 	// Start begins listening for requests on this transport.
-	// It blocks until the context is cancelled or an error occurs.
+	// It blocks until the context is canceled or an error occurs.
 	Start(ctx context.Context, server *server.Server) error
 
 	// Stop gracefully shuts down the transport.

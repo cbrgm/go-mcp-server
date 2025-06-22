@@ -19,10 +19,6 @@ const (
 	transportStdio = "stdio"
 	transportHTTP  = "http"
 
-	defaultServerName    = "MCP Server"
-	defaultServerVersion = "1.0.0"
-	defaultHTTPPort      = 8080
-
 	minPort = 1
 	maxPort = 65535
 )

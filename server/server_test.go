@@ -33,7 +33,6 @@ func TestNewMCPServerWithOptions(t *testing.T) {
 		WithIdleTimeout(90*time.Second),
 		WithShutdownTimeout(15*time.Second),
 	)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -96,7 +95,6 @@ func TestNewMCPServerDefaults(t *testing.T) {
 		"2.0.0",
 		handler, handler, handler,
 	)
-
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}

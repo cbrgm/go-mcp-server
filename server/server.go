@@ -182,7 +182,7 @@ func (s *Server) HandleRequest(ctx context.Context, req mcp.Request) error {
 	}
 }
 
-func (s *Server) sendResponse(ctx context.Context, id any, result any) error {
+func (s *Server) sendResponse(ctx context.Context, id, result any) error {
 	response := mcp.Response{
 		JSONRPC: mcp.JSONRPCVersion,
 		ID:      id,
@@ -220,7 +220,7 @@ func (s *Server) sendResponseDirect(ctx context.Context, response mcp.Response) 
 	return rs.SendResponse(response)
 }
 
-// Request handlers
+// Request handlers.
 func (s *Server) handleInitialize(ctx context.Context, id any) error {
 	result, err := s.Initialize(ctx)
 	if err != nil {

@@ -1,0 +1,39 @@
+---
+name: release-notification
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-on-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification on new release
+        uses: cbrgm/telegram-github-action@ae9dc892701436bfa54e34f5e8a49b1816c1a6c8 # v1.3.5
+        with:
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          to: ${{ secrets.TELEGRAM_CHAT_ID }}
+          message: |
+            🚀 New Release Published!
+            Release Name: ${{ github.event.release.name }}
+            Tag: ${{ github.event.release.tag_name }}
+            Actor: ${{ github.actor }}
+            Repository: ${{ github.repository }}
+            Check it out: ${{ github.event.release.html_url }}
+
+      - name: Send Mastodon Status on new release
+        id: mastodon
+        uses: cbrgm/mastodon-github-action@740aa5979f7dd752b329e3d3e3492166e5ada890 # v2.1.16
+        if: ${{ !github.event.repository.private }}
+        with:
+          access-token: ${{ secrets.MASTODON_ACCESS_TOKEN }}
+          url: ${{ secrets.MASTODON_URL }}
+          language: "en"
+          message: |
+            🚀  ${{ github.repository }} ${{ github.event.release.name }} published!
+            Check it out: ${{ github.event.release.html_url }}
+...
